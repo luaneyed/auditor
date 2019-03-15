@@ -4,20 +4,22 @@ use std::path::PathBuf;
 
 pub struct Traverser {
     root: PathBuf,
+    is_root_target: bool,
     dir: Option<ReadDir>,
-    child: Option<Box<Traverser>>,
+    cur_child: Option<Box<Traverser>>,
 }
 
 impl Traverser {
     pub fn new(root: PathBuf)-> Traverser {
         Traverser {
             root: root.to_owned(),
+            is_root_target: root.join("package.json").exists(),
             dir: if root.is_dir() {
-                Some(fs::read_dir(&root).expect("Permission error"))
+                Some(fs::read_dir(&root).expect(&format!("Permission error whilie reading {} directory", root.to_str().unwrap())))
             } else {
                 None
             },
-            child: None,
+            cur_child: None,
         }
     }
 }
@@ -26,29 +28,26 @@ impl Iterator for Traverser {
     type Item = PathBuf;
 
     fn next(&mut self) -> Option<PathBuf> {
-        if let Some(child) = self.child.as_mut() {
+        if self.is_root_target {
+            self.is_root_target = false;
+            return Some(fs::canonicalize(&self.root).unwrap())
+        }
+
+        if let Some(child) = self.cur_child.as_mut() {
             if let Some(item) = child.next() {
                 return Some(item)
             }
 
-            self.child = None;
+            self.cur_child = None;
         }
 
         if let Some(dir) = self.dir.as_mut() {
             if let Some(entry) = dir.next() {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_dir() {
-                    if let Some(os_str) = path.as_path().file_name() {
-                        if os_str.to_str() == Some("node_modules") {
-                            return Some(fs::canonicalize(&self.root).unwrap())
-                        }
-                    }
-                    self.child = Some(Box::new(Traverser::new(path)));
-                    self.next()
-                } else {
-                    self.next()
+                let path = entry.unwrap().path();
+                if !is_node_modules_directory(&path) {
+                    self.cur_child = Some(Box::new(Traverser::new(path)));
                 }
+                self.next()
             } else {
                 None
             }
@@ -56,4 +55,8 @@ impl Iterator for Traverser {
             None
         }
     }
+}
+
+fn is_node_modules_directory(path: &PathBuf)-> bool {
+    path.is_dir() && path.as_path().file_name().unwrap().to_str() == Some("node_modules")
 }
