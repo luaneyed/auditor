@@ -7,6 +7,7 @@ pub struct Traverser {
     is_root_target: bool,
     dir: Option<ReadDir>,
     cur_child: Option<Box<Traverser>>,
+    is_finished: bool,
 }
 
 impl Traverser {
@@ -20,6 +21,7 @@ impl Traverser {
                 None
             },
             cur_child: None,
+            is_finished: false,
         }
     }
 }
@@ -28,8 +30,12 @@ impl Iterator for Traverser {
     type Item = PathBuf;
 
     fn next(&mut self) -> Option<PathBuf> {
+        if self.is_finished {
+            return None
+        }
+
         if self.is_root_target {
-            self.is_root_target = false;
+            self.is_finished = true;
             return Some(fs::canonicalize(&self.root).unwrap())
         }
 
