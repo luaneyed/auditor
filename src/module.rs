@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::fmt;
+use colored::*;
 
 pub enum Severity {
     LOW,
@@ -29,13 +30,13 @@ pub struct ModuleStat {
     moderate_cnt: u16,
     high_cnt: u16,
     critical_cnt: u16,
-    directory_cnt: u16,
+    package_cnt: u16,
 }
 
 impl ModuleStat {
     //todo: store directories
     pub fn new()-> ModuleStat {
-        ModuleStat { low_cnt: 0, moderate_cnt: 0, high_cnt: 0, critical_cnt: 0, directory_cnt: 1 }
+        ModuleStat { low_cnt: 0, moderate_cnt: 0, high_cnt: 0, critical_cnt: 0, package_cnt: 1 }
     }
 
     pub fn add(&mut self, severity: Severity) {
@@ -59,7 +60,29 @@ impl ModuleStat {
         self.moderate_cnt += other.moderate_cnt;
         self.high_cnt += other.high_cnt;
         self.critical_cnt += other.critical_cnt;
-        self.directory_cnt += other.directory_cnt;
+        self.package_cnt += other.package_cnt;
+    }
+}
+
+impl fmt::Display for ModuleStat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.low_cnt > 0 {
+            writeln!(f, "{}{}", "LOW        ".white(), self.low_cnt)?;
+        }
+
+        if self.moderate_cnt > 0 {
+            writeln!(f, "{}{}", "MODERATE   ".yellow(), self.moderate_cnt)?;
+        }
+
+        if self.high_cnt > 0 {
+            writeln!(f, "{}{}", "HIGH       ".red(), self.high_cnt)?;
+        }
+
+        if self.critical_cnt > 0 {
+            writeln!(f, "{}{}", "CRITICAL   ".purple(), self.critical_cnt)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -111,8 +134,8 @@ impl fmt::Debug for AuditResult {
 impl fmt::Display for AuditResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (module_name, stat) in &self.map {
-            write!(f, "Module [ {} ]", module_name)?;
-            println!("{:?}", stat);
+            writeln!(f, "{} from {} packages", module_name.bold(), stat.package_cnt)?;
+            println!("{}", stat);
         }
         Ok(())
     }
